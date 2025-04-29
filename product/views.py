@@ -1,4 +1,5 @@
 from rest_framework.decorators import api_view
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Category, Product, Review
@@ -11,7 +12,6 @@ from .serializers import (
     ProductValidateSerializer,
     ReviewValidateSerializer
 )
-
 
 @api_view(['GET', 'POST'])
 def category_list_api_view(request):
