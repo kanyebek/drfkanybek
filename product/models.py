@@ -14,6 +14,8 @@ class Product(models.Model):
     description = models.TextField(null=True, blank=True)
     price = models.DecimalField(max_digits=5, decimal_places=2)
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
+    owner = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE, related_name='customuser')
+
     def __str__(self):
         return self.title
 
