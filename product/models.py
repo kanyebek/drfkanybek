@@ -31,6 +31,7 @@ class Review(models.Model):
     text = models.TextField(null=True,blank=True)
     product = models.ForeignKey(Product, on_delete=models.CASCADE,related_name='reviews')
     stars = models.IntegerField(choices=STARS, default=5)
+    owner = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE, related_name='reviews')
     def __str__(self):
         return f'Отзыв на {self.product.title}'
 

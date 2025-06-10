@@ -17,8 +17,7 @@ from .serializers import (
     ProductValidateSerializer,
     ReviewValidateSerializer
 )
-from common.permissions import IsOwner, IsAnonymousReadOnly, IsStaff
-
+from common.permissions import IsOwner, IsAnonymousReadOnly, IsStaff, IsSuperuser
 PAGE_SIZE = 5
 
 
@@ -39,6 +38,7 @@ class CategoryListCreateAPIView(ListCreateAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     pagination_class = CustomPagination
+    permission_classes = [IsSuperuser | IsAnonymousReadOnly | IsStaff]
 
     def post(self, request, *args, **kwargs):
         serializer = CategoryValidateSerializer(data=request.data)
@@ -53,6 +53,7 @@ class CategoryDetailAPIView(RetrieveUpdateDestroyAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     lookup_field = 'id'
+    permission_classes = [IsSuperuser | IsStaff]
 
     def put(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -119,6 +120,7 @@ class ReviewViewSet(ModelViewSet):
     serializer_class = ReviewSerializer
     pagination_class = CustomPagination
     lookup_field = 'id'
+    permission_classes = [IsOwner | IsAnonymousReadOnly | IsStaff]
 
     def create(self, request, *args, **kwargs):
         serializer = ReviewValidateSerializer(data=request.data)
@@ -128,12 +130,14 @@ class ReviewViewSet(ModelViewSet):
         text = serializer.validated_data.get('text')
         stars = serializer.validated_data.get('stars')
         product = serializer.validated_data.get('product')
+        owner = request.user
 
         # Create review
         review = Review.objects.create(
             text=text,
             stars=stars,
-            product=product
+            product=product, 
+            owner=owner
         )
 
         return Response(data=ReviewSerializer(review).data,
@@ -165,6 +169,7 @@ class ProductWithReviewsAPIView(APIView):
 class OwnerProductListAPIView(ListAPIView):
     serializer_class = ProductSerializer
     pagination_class = CustomPagination
+    permission_classes = [IsOwner | IsStaff]
 
     def get_queryset(self):
         return Product.objects.select_related('category').filter(owner=self.request.user)
