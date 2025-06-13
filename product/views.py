@@ -6,6 +6,8 @@ from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIV
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
+
 
 from .models import Category, Product, Review
 from .serializers import (
@@ -34,26 +36,29 @@ class CustomPagination(PageNumberPagination):
         return PAGE_SIZE
 
 
+
 class CategoryListCreateAPIView(ListCreateAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     pagination_class = CustomPagination
-    permission_classes = [IsSuperuser | IsAnonymousReadOnly | IsStaff]
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAnonymousReadOnly()]
+        return [IsSuperuser()]
 
     def post(self, request, *args, **kwargs):
         serializer = CategoryValidateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         category = Category.objects.create(**serializer.validated_data)
-        return Response(data=CategorySerializer(category).data,
-                        status=status.HTTP_201_CREATED)
+        return Response(CategorySerializer(category).data, status=status.HTTP_201_CREATED)
 
 
 class CategoryDetailAPIView(RetrieveUpdateDestroyAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     lookup_field = 'id'
-    permission_classes = [IsSuperuser | IsStaff]
+    permission_classes = [IsSuperuser]
 
     def put(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -63,7 +68,7 @@ class CategoryDetailAPIView(RetrieveUpdateDestroyAPIView):
         instance.name = serializer.validated_data.get('name')
         instance.save()
 
-        return Response(data=CategorySerializer(instance).data)
+        return Response(CategorySerializer(instance).data)
 
 
 class ProductListCreateAPIView(ListCreateAPIView):
@@ -71,6 +76,7 @@ class ProductListCreateAPIView(ListCreateAPIView):
     serializer_class = ProductSerializer
     pagination_class = CustomPagination
     permission_classes = [IsOwner | IsAnonymousReadOnly | IsStaff]
+    authentication_classes = [JWTAuthentication]  # Assuming no authentication for simplicity
 
     def post(self, request, *args, **kwargs):
         serializer = ProductValidateSerializer(data=request.data)

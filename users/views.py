@@ -1,4 +1,5 @@
 from django.db import transaction
+from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -15,7 +16,9 @@ from .serializers import (
 from .models import ConfirmationCode
 import random
 import string
-from drf_yasg.utils import swagger_auto_schema
+from drf_yasg.utils import swagger_auto_schema 
+from users.serializers import CustomToken
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 class AuthorizationAPIView(CreateAPIView):
     serializer_class = AuthValidateSerializer
@@ -43,13 +46,14 @@ class AuthorizationAPIView(CreateAPIView):
 
 class RegistrationAPIView(CreateAPIView):
     serializer_class = RegisterValidateSerializer
-
+    permission_classes = [AllowAny]
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         email = serializer.validated_data.get("email")
         username = serializer.validated_data.get("username")
+        birthday = serializer.validated_data.get("birthday")
         password = serializer.validated_data['password']
 
         # Use transaction to ensure data consistency
@@ -58,6 +62,7 @@ class RegistrationAPIView(CreateAPIView):
                 email=email,
                 username=username,
                 password=password,
+                birthday=birthday,
                 is_active=False
             )
 
@@ -78,6 +83,7 @@ class RegistrationAPIView(CreateAPIView):
         )
 
 class ConfirmUserAPIView(APIView):
+    permission_classes = [AllowAny]
     @swagger_auto_schema(
             request_body=ConfirmationSerializer
     )
@@ -85,7 +91,7 @@ class ConfirmUserAPIView(APIView):
         serializer = ConfirmationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        user_id = serializer.validated_data['user_id']
+        user_id = serializer.validated_data.get('user_id')
 
         with transaction.atomic():
             user = CustomUser.objects.get(id=user_id)
@@ -103,3 +109,7 @@ class ConfirmUserAPIView(APIView):
                 'key': token.key
             }
         )
+    
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomToken
+    

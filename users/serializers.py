@@ -1,12 +1,15 @@
+from datetime import date
 from rest_framework import serializers
 # from django.contrib.auth.models import User
 from rest_framework.exceptions import ValidationError
 from .models import ConfirmationCode
 from users.models import CustomUser
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 class UserBaseSerializer(serializers.Serializer):
     email = serializers.EmailField()
     username = serializers.CharField(max_length=150)
+    birthday = serializers.DateField()
     password = serializers.CharField()
 
 
@@ -52,3 +55,19 @@ class ConfirmationSerializer(serializers.Serializer):
             raise ValidationError('Неверный код подтверждения!')
 
         return attrs
+    
+class CustomToken(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        if not user.birthday:
+            raise ValidationError("У пользователя не указана дата рождения.")
+        today = date.today()
+        age = today.year - user.birthday.year - ( (today.month, today.day) < (user.birthday.month, user.birthday.day))
+
+        if age < 18:
+            raise ValidationError("Пользователю должно быть не менее 18 лет.")
+        token = super().get_token(user)
+        token['email'] = user.email
+        token['username'] = user.username
+        token['birthday'] = user.birthday.strftime('%Y-%m-%d')
+        return token
