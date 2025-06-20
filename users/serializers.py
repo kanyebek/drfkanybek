@@ -1,9 +1,9 @@
 from datetime import date
 from rest_framework import serializers
+from django.core.cache import cache
 
 # from django.contrib.auth.models import User
 from rest_framework.exceptions import ValidationError
-from .models import ConfirmationCode
 from users.models import CustomUser
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -42,21 +42,17 @@ class ConfirmationSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         user_id = attrs.get("user_id")
-        code = attrs.get("code")
+        code = attrs.get("confirmation_code")
 
         try:
             user = CustomUser.objects.get(id=user_id)
         except CustomUser.DoesNotExist:
             raise ValidationError("User не существует!")
-
-        try:
-            confirmation_code = ConfirmationCode.objects.get(user=user)
-        except ConfirmationCode.DoesNotExist:
-            raise ValidationError("Код подтверждения не найден!")
-
-        if confirmation_code.code != code:
+        
+        cache_key = f'verify:{user.email}'
+        stored_code = cache.get(cache_key)
+        if stored_code != code:
             raise ValidationError("Неверный код подтверждения!")
-
         return attrs
 
 

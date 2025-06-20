@@ -23,6 +23,7 @@ from .serializers import (
     ReviewValidateSerializer,
 )
 from common.permissions import IsOwner, IsAnonymousReadOnly, IsStaff, IsSuperuser
+from django.core.cache import cache
 
 PAGE_SIZE = 5
 
@@ -88,6 +89,17 @@ class ProductListCreateAPIView(ListCreateAPIView):
     authentication_classes = [
         JWTAuthentication
     ]  # Assuming no authentication for simplicity
+
+    def get(self, request, *args, **kwargs):
+        cached_data = cache.get("product_list")
+        if cached_data:
+            return Response(data=cached_data, status=status.HTTP_200_OK)
+        paginator = CustomPagination()
+        products = Product.objects.select_related("category").prefetch_related("reviews").all()
+        result_page = paginator.paginate_queryset(products, request)
+        serializer = ProductSerializer(result_page, many=True)
+        cache.set("product_list", serializer.data, timeout=60 * 15)  # Cache for 15 minutes
+        return paginator.get_paginated_response(serializer.data)
 
     def post(self, request, *args, **kwargs):
         serializer = ProductValidateSerializer(data=request.data)

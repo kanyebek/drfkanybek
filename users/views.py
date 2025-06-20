@@ -14,12 +14,12 @@ from .serializers import (
     AuthValidateSerializer,
     ConfirmationSerializer,
 )
-from .models import ConfirmationCode
 import random
 import string
 from drf_yasg.utils import swagger_auto_schema
 from users.serializers import CustomToken
 from rest_framework_simplejwt.views import TokenObtainPairView
+from django.core.cache import cache
 
 
 class AuthorizationAPIView(CreateAPIView):
@@ -59,7 +59,7 @@ class RegistrationAPIView(CreateAPIView):
         username = serializer.validated_data.get("username")
         birthday = serializer.validated_data.get("birthday")
         password = serializer.validated_data["password"]
-
+        confirmation_code = store_verification_code(email)
         # Use transaction to ensure data consistency
         with transaction.atomic():
             user = CustomUser.objects.create_user(
@@ -68,16 +68,12 @@ class RegistrationAPIView(CreateAPIView):
                 password=password,
                 birthday=birthday,
                 is_active=False,
+                confirmation_code=confirmation_code,
             )
-
-            # Create a random 6-digit code
-            code = "".join(random.choices(string.digits, k=6))
-
-            confirmation_code = ConfirmationCode.objects.create(user=user, code=code)
 
         return Response(
             status=status.HTTP_201_CREATED,
-            data={"user_id": user.id, "confirmation_code": confirmation_code.code},
+            data={"user_id": user.id, "confirmation_code": confirmation_code},
         )
 
 
@@ -97,9 +93,9 @@ class ConfirmUserAPIView(APIView):
             user.save()
 
             token, _ = Token.objects.get_or_create(user=user)
-
-            ConfirmationCode.objects.filter(user=user).delete()
-
+            
+        cache_key = f'verify:{user.email}'
+        cache.delete(cache_key)  
         return Response(
             status=status.HTTP_200_OK,
             data={"message": "User аккаунт успешно активирован", "key": token.key},
