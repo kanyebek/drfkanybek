@@ -20,7 +20,7 @@ from drf_yasg.utils import swagger_auto_schema
 from users.serializers import CustomToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.core.cache import cache
-
+from users.tasks import send_otp_email
 
 class AuthorizationAPIView(CreateAPIView):
     serializer_class = AuthValidateSerializer
@@ -70,6 +70,7 @@ class RegistrationAPIView(CreateAPIView):
                 is_active=False,
                 confirmation_code=confirmation_code,
             )
+            send_otp_email.delay(email, confirmation_code)
 
         return Response(
             status=status.HTTP_201_CREATED,
